@@ -8,11 +8,12 @@ import java.util.Map.Entry;
 import org.json.simple.JSONObject;
 
 import apps.appsProxy;
-import authority.userDBHelper;
+import check.formHelper;
+import check.formHelper.formdef;
 import database.db;
+import database.userDBHelper;
 import esayhelper.JSONHelper;
-import esayhelper.formHelper;
-import esayhelper.formHelper.formdef;
+import nlogger.nlogger;
 import rpc.execRequest;
 
 public class MenuModel {
@@ -20,6 +21,7 @@ public class MenuModel {
 	private static formHelper form;
 
 	static {
+		nlogger.logout((String) execRequest.getChannelValue("sid"));
 		menus = new userDBHelper("menu", (String) execRequest.getChannelValue("sid"));
 		form = menus.getChecker();
 	}

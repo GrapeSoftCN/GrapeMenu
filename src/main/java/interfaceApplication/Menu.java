@@ -1,6 +1,10 @@
 package interfaceApplication;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+
+import javax.sound.midi.MidiDevice.Info;
 
 import org.bson.types.ObjectId;
 import org.json.simple.JSONArray;
@@ -10,6 +14,7 @@ import apps.appsProxy;
 import authority.privilige;
 import database.db;
 import esayhelper.JSONHelper;
+import esayhelper.StringHelper;
 import esayhelper.TimeHelper;
 import esayhelper.jGrapeFW_Message;
 import model.MenuModel;
@@ -32,7 +37,10 @@ public class Menu {
 	}
 
 	public Menu() {
-		UserInfo = session.getSession((String) execRequest.getChannelValue("sid"));
+		String sid = (String) execRequest.getChannelValue("sid");
+		if (sid != null) {
+			UserInfo = session.getSession(sid);
+		}
 	}
 
 	/**
@@ -49,21 +57,23 @@ public class Menu {
 	 *
 	 */
 	public String AddMenu(String mString) {
-		int role = getRoleSign();
+		if (UserInfo == null) {
+			return resultMessage(3);
+		}
 		int code = 99;
-		if (role == 5) {
-			try {
-				JSONObject object = model.check(mString, def());
-				if (object == null) {
-					return resultMessage(1);
-				}
-				code = model.getdb().data(object).insertOnce() != null ? 0 : 99;
-			} catch (Exception e) {
-				nlogger.logout(e);
-				code = 99;
+		int role = getRoleSign();
+		if (role != 5) {
+			return resultMessage(2);
+		}
+		try {
+			JSONObject object = model.check(mString, def());
+			if (object == null) {
+				return resultMessage(1);
 			}
-		}else{
-			code = 2;
+			code = model.getdb().data(object).insertOnce() != null ? 0 : 99;
+		} catch (Exception e) {
+			nlogger.logout(e);
+			code = 99;
 		}
 		return resultMessage(code, "新增菜单成功");
 	}
@@ -160,10 +170,18 @@ public class Menu {
 	 */
 	public String ShowMenu() {
 		JSONArray array = null;
+		if (UserInfo == null || UserInfo.size() == 0) {
+			return resultMessage(3);
+		}
 		try {
-			String prvid = (String) UserInfo.get("ugid");
 			array = new JSONArray();
-			array = model.getdb().eq("state", 0).eq("prvid", prvid).select();
+			int rolesign = getRoleSign();
+			if (rolesign == 5) {
+				array = model.getdb().limit(50).select();
+			} else {
+				String prvid = (String) UserInfo.get("ugid");
+				array = model.getdb().eq("state", 0).like("prvid", prvid).select();
+			}
 		} catch (Exception e) {
 			nlogger.logout(e);
 			array = null;
@@ -187,17 +205,266 @@ public class Menu {
 	 */
 	public String SetState(String id, String state) {
 		int code = 99;
-		String string = "{\"state\":" + state + "}";
-		if (JSONHelper.string2json(state) != null) {
-			string = state;
+		if (!state.contains("state")) {
+			state = "{\"state\":" + state + "}";
 		}
+		// String string = "{\"state\":" + state + "}";
+		// if (JSONHelper.string2json(state) != null) {
+		// string = state;
+		// }
 		try {
-			code = model.getdb().eq("_id", new ObjectId(id)).data(string).update() != null ? 0 : 99;
+			code = model.getdb().eq("_id", new ObjectId(id)).data(state).update() != null ? 0 : 99;
 		} catch (Exception e) {
 			nlogger.logout(e);
 			code = 99;
 		}
 		return resultMessage(code, "菜单状态设置成功");
+	}
+
+	public String SetRoles(String rid, String Info) {
+		String result = resultMessage(99);
+		JSONObject object = JSONHelper.string2json(Info);
+		if (object != null && object.containsKey("menuid") && object.containsKey("optype")) {
+			try {
+				String mid = object.get("menuid").toString();
+				int type = Integer.parseInt(object.get("optype").toString());
+				if (type == 0) {
+					result = SetRole(rid, mid);
+				} else {
+					result = DeleteMenuByRole(rid, mid);
+				}
+			} catch (Exception e) {
+				nlogger.logout(e);
+				result = resultMessage(99);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * 给菜单设置所属角色id
+	 * 
+	 * @project GrapeMenu
+	 * @package interfaceApplication
+	 * @file Menu.java
+	 * 
+	 * @param id
+	 *            角色id
+	 * @param mid
+	 *            菜单id
+	 * @return
+	 *
+	 */
+	private String SetRole(String id, String mid) {
+		long code = 0;
+		String result = resultMessage(99);
+		String[] mids = mid.split(",");
+		try {
+			if (mids.length == 1) {
+				result = SetManager(id, mid);
+			} else {
+				String menuId = getMenuid(id, mids);
+				String[] ids = menuId.split(",");
+				for (String string : ids) {
+					if (code == 0) {
+						result = SetManager(id, string);
+						code = (long) JSONHelper.string2json(result).get("errorcode");
+					} else {
+						result = resultMessage(99);
+						break;
+					}
+				}
+			}
+		} catch (Exception e) {
+			nlogger.logout(e);
+			result = resultMessage(99);
+		}
+		return result;
+	}
+
+	/**
+	 * 删除某角色下的菜单
+	 * 
+	 * @project GrapeMenu
+	 * @package interfaceApplication
+	 * @file Menu.java
+	 * 
+	 * @param rid
+	 *            角色id
+	 * @param mid
+	 *            菜单id
+	 * @return
+	 *
+	 */
+	private String DeleteMenuByRole(String rid, String mid) {
+		long code = 0;
+		String result = resultMessage(99);
+		String[] mids = mid.split(",");
+		try {
+			if (mids.length == 1) {
+				result = Delete(rid, mid);
+			} else {
+				String menuId = getMenuid(rid, mids);
+				String[] ids = menuId.split(",");
+				for (String string : ids) {
+					if (code == 0) {
+						result = Delete(rid, string);
+						code = (long) JSONHelper.string2json(result).get("errorcode");
+					} else {
+						result = resultMessage(99);
+						break;
+					}
+				}
+			}
+		} catch (Exception e) {
+			nlogger.logout(e);
+			result = resultMessage(99);
+		}
+		return result;
+	}
+
+	private String Delete(String rid, String mid) {
+		int code = 0;
+		JSONObject object = getMenu(rid, mid);
+		if (object == null) {
+			return resultMessage(4);
+		}
+		try {
+			String prvid = "";
+			object = getPrv(mid);
+			if (object != null) {
+				prvid = object.get("prvid").toString();
+				List<String> list = Str2List(prvid);
+				if (list.size() != 1) {
+					list.remove(rid);
+					prvid = StringHelper.join(list);
+				}
+			}
+			prvid = "{\"prvid\":\"" + prvid + "\"}";
+			code = model.getdb().eq("_id", new ObjectId(mid)).data(prvid).update() != null ? 0 : 99;
+		} catch (Exception e) {
+			nlogger.logout(e);
+			code = 99;
+		}
+		return resultMessage(code, "删除成功");
+	}
+
+	/**
+	 * 给菜单设置管理员
+	 * 
+	 * @project GrapeMenu
+	 * @package interfaceApplication
+	 * @file Menu.java
+	 * 
+	 * @param id
+	 *            角色id
+	 * @param mid
+	 *            菜单id
+	 * @return
+	 *
+	 */
+	private String SetManager(String id, String mid) {
+		int code = 99;
+		JSONObject object = getMenu(id, mid);
+		if (object != null) {
+			return resultMessage(4);
+		}
+		try {
+			String prvid = "";
+			object = getPrv(mid);
+			if (object != null) {
+				prvid = object.get("prvid").toString();
+				List<String> list = Str2List(prvid);
+				list.add(id);
+				prvid = StringHelper.join(list);
+			}
+			prvid = "{\"prvid\":\"" + prvid + "\"}";
+			code = model.getdb().eq("_id", new ObjectId(mid)).data(prvid).update() != null ? 0 : 99;
+		} catch (Exception e) {
+			nlogger.logout(e);
+			code = 99;
+		}
+		return resultMessage(code, "设置管理员权限成功");
+	}
+
+	/**
+	 * 用逗号分隔的字符串转换成list
+	 * 
+	 * @project GrapeMenu
+	 * @package interfaceApplication
+	 * @file Menu.java
+	 * 
+	 * @param iString
+	 * @return
+	 *
+	 */
+	private List<String> Str2List(String iString) {
+		List<String> list = new ArrayList<String>();
+		String[] strings = iString.split(",");
+		for (String string : strings) {
+			list.add(string);
+		}
+		return list;
+	}
+
+	/**
+	 * 获取菜单id
+	 * 
+	 * @project GrapeMenu
+	 * @package interfaceApplication
+	 * @file Menu.java
+	 * 
+	 * @param id
+	 *            角色id
+	 * @param mids
+	 *            菜单id
+	 * @return
+	 *
+	 */
+	private String getMenuid(String id, String[] mids) {
+		List<String> list = new ArrayList<String>();
+		for (String menuid : mids) {
+			JSONObject object = getMenu(id, menuid);
+			if (object == null) {
+				list.add(menuid);
+			}
+		}
+		return StringHelper.join(list);
+	}
+
+	/**
+	 * 获取菜单所属角色id
+	 * 
+	 * @project GrapeMenu
+	 * @package interfaceApplication
+	 * @file Menu.java
+	 * 
+	 * @param id
+	 * @return
+	 *
+	 */
+	private JSONObject getPrv(String id) {
+		JSONObject object = model.getdb().eq("_id", new ObjectId(id)).field("prvid").find();
+		return object != null ? object : null;
+	}
+
+	/**
+	 * 根据菜单id和角色id，查询菜单
+	 * 
+	 * @project GrapeMenu
+	 * @package interfaceApplication
+	 * @file Menu.java
+	 * 
+	 * @param id
+	 *            角色id
+	 * @param prvid
+	 *            菜单id
+	 * @return
+	 *
+	 */
+	private JSONObject getMenu(String id, String mid) {
+		JSONObject object = model.getdb().eq("_id", new ObjectId(mid)).like("prvid", id).find();
+		return object != null ? object : null;
 	}
 
 	/**
@@ -213,7 +480,7 @@ public class Menu {
 	private int getRoleSign() {
 		int roleSign = 0; // 游客
 		String sid = (String) execRequest.getChannelValue("sid");
-		if (!sid.equals("0")) {
+		if (sid != null) {
 			try {
 				privilige privil = new privilige(sid);
 				int roleplv = privil.getRolePV();
@@ -246,8 +513,11 @@ public class Menu {
 		map.put("parent", "0");
 		map.put("sort", 0);
 		map.put("state", 0);
-		map.put("data", new JSONObject());
+		map.put("data", "");
 		map.put("time", String.valueOf(TimeHelper.nowMillis()));
+		// map.put("r", 0);
+		// map.put("d", 0);
+		// map.put("v", 0);
 		return map;
 	}
 
@@ -275,6 +545,15 @@ public class Menu {
 			break;
 		case 2:
 			msg = "只有系统管理员用户才可以新增菜单";
+			break;
+		case 3:
+			msg = "登录信息已失效，请重新登录";
+			break;
+		case 4:
+			msg = "该管理员已具备操作此菜单的权限";
+			break;
+		case 5:
+			msg = "该管理员不具备操作此菜单的权限";
 			break;
 		default:
 			msg = "其他操作异常";

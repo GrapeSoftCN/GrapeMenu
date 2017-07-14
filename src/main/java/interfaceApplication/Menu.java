@@ -4,23 +4,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import javax.sound.midi.MidiDevice.Info;
-
 import org.bson.types.ObjectId;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+import JGrapeSystem.jGrapeFW_Message;
 import apps.appsProxy;
 import authority.privilige;
 import database.db;
-import esayhelper.JSONHelper;
-import esayhelper.StringHelper;
-import esayhelper.TimeHelper;
-import esayhelper.jGrapeFW_Message;
+import json.JSONHelper;
 import model.MenuModel;
 import nlogger.nlogger;
 import rpc.execRequest;
 import session.session;
+import string.StringHelper;
+import time.TimeHelper;
 
 public class Menu {
 	private static MenuModel model;
@@ -57,9 +55,6 @@ public class Menu {
 	 *
 	 */
 	public String AddMenu(String mString) {
-		if (UserInfo == null) {
-			return resultMessage(3);
-		}
 		int code = 99;
 		int role = getRoleSign();
 		if (role != 5) {
@@ -170,7 +165,7 @@ public class Menu {
 	 */
 	public String ShowMenu() {
 		JSONArray array = null;
-		if (UserInfo == null || UserInfo.size() == 0) {
+		if (UserInfo==null) {
 			return resultMessage(3);
 		}
 		try {
@@ -483,7 +478,7 @@ public class Menu {
 		if (sid != null) {
 			try {
 				privilige privil = new privilige(sid);
-				int roleplv = privil.getRolePV();
+				int roleplv = privil.getRolePV(appsProxy.appidString());
 				if (roleplv >= 1000 && roleplv < 3000) {
 					roleSign = 1; // 普通用户即企业员工
 				}
@@ -547,7 +542,7 @@ public class Menu {
 			msg = "只有系统管理员用户才可以新增菜单";
 			break;
 		case 3:
-			msg = "登录信息已失效，请重新登录";
+			msg = "登录信息已失效";
 			break;
 		case 4:
 			msg = "该管理员已具备操作此菜单的权限";

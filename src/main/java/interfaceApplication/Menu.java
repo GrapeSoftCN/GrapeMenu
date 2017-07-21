@@ -21,21 +21,18 @@ import string.StringHelper;
 import time.TimeHelper;
 
 public class Menu {
-	private static MenuModel model;
-	private static session session;
-	private static JSONObject _obj;
-	private static HashMap<String, Object> map;
-	private static JSONObject UserInfo = new JSONObject();
+	private MenuModel model = new MenuModel();
+	private session session;
+	private JSONObject _obj;
+	private HashMap<String, Object> map;
+	private JSONObject UserInfo = new JSONObject();
 
-	static {
-		model = new MenuModel();
+	public Menu() {
 		session = new session();
 		_obj = new JSONObject();
 		map = new HashMap<String, Object>();
-	}
-
-	public Menu() {
 		String sid = (String) execRequest.getChannelValue("sid");
+		nlogger.logout(sid);
 		if (sid != null) {
 			UserInfo = session.getSession(sid);
 		}
@@ -164,8 +161,9 @@ public class Menu {
 	 *
 	 */
 	public String ShowMenu() {
+		nlogger.logout(UserInfo);
 		JSONArray array = null;
-		if (UserInfo==null) {
+		if (UserInfo == null) {
 			return resultMessage(3);
 		}
 		try {
@@ -491,8 +489,11 @@ public class Menu {
 				if (roleplv >= 8000 && roleplv < 10000) {
 					roleSign = 4; // 监督管理员
 				}
-				if (roleplv >= 10000) {
+				if (roleplv >= 10000 && roleplv < 12000) {
 					roleSign = 5; // 总管理员
+				}
+				if (roleplv >= 12000) {
+					roleSign = 6; // 总管理员
 				}
 			} catch (Exception e) {
 				nlogger.logout(e);

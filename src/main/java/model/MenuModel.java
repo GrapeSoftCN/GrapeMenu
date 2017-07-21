@@ -17,16 +17,13 @@ import nlogger.nlogger;
 import rpc.execRequest;
 
 public class MenuModel {
-	private static userDBHelper menus;
-	private static formHelper form;
+	private userDBHelper menus;
+	private formHelper form;
 
-	static {
-		nlogger.logout((String) execRequest.getChannelValue("sid"));
-		menus = new userDBHelper("menu", (String) execRequest.getChannelValue("sid"));
-		form = menus.getChecker();
-	}
 
 	public MenuModel() {
+		menus = new userDBHelper("menu", (String) execRequest.getChannelValue("sid"));
+		form = menus.getChecker();
 		form.putRule("name", formdef.notNull);
 		form.putRule("prvid", formdef.notNull);
 	}

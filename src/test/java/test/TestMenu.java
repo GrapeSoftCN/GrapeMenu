@@ -8,7 +8,7 @@ public class TestMenu {
 		 try {
 		 System.out.println("GrapeMenu!");
 		 System.setProperty("AppName", "GrapeMenu");
-		 booter.start(1003);
+		 booter.start(1008);
 		 } catch (Exception e) {
 		 }
 	}

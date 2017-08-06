@@ -32,7 +32,6 @@ public class Menu {
 		_obj = new JSONObject();
 		map = new HashMap<String, Object>();
 		String sid = (String) execRequest.getChannelValue("sid");
-		nlogger.logout(sid);
 		if (sid != null) {
 			UserInfo = session.getSession(sid);
 		}
@@ -161,7 +160,6 @@ public class Menu {
 	 *
 	 */
 	public String ShowMenu() {
-		nlogger.logout(UserInfo);
 		JSONArray array = null;
 		if (UserInfo == null) {
 			return resultMessage(3);

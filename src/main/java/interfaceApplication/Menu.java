@@ -10,8 +10,9 @@ import org.json.simple.JSONObject;
 
 import JGrapeSystem.jGrapeFW_Message;
 import apps.appsProxy;
-import authority.privilige;
+import authority.plvDef.UserMode;
 import database.db;
+import interfaceModel.GrapeTreeDBModel;
 import json.JSONHelper;
 import model.MenuModel;
 import nlogger.nlogger;
@@ -21,19 +22,24 @@ import string.StringHelper;
 import time.TimeHelper;
 
 public class Menu {
+	private GrapeTreeDBModel menus = new GrapeTreeDBModel();
 	private MenuModel model = new MenuModel();
-	private session session;
+	private session se;
 	private JSONObject _obj;
 	private HashMap<String, Object> map;
 	private JSONObject UserInfo = new JSONObject();
 
 	public Menu() {
-		session = new session();
+		menus.form("menu").bindApp();
+		se = new session();
 		_obj = new JSONObject();
 		map = new HashMap<String, Object>();
-		String sid = (String) execRequest.getChannelValue("sid");
+		String sid = session.getSID();
+		nlogger.logout(sid);
 		if (sid != null) {
-			UserInfo = session.getSession(sid);
+			UserInfo = se.getDatas();
+			nlogger.logout("uid: "+se.getUID());
+			nlogger.logout("data: "+se.getDatas());
 		}
 	}
 
@@ -52,16 +58,12 @@ public class Menu {
 	 */
 	public String AddMenu(String mString) {
 		int code = 99;
-		int role = getRoleSign();
-		if (role != 5) {
-			return resultMessage(2);
-		}
 		try {
-			JSONObject object = model.check(mString, def());
+			JSONObject object = JSONObject.toJSON(mString);
 			if (object == null) {
 				return resultMessage(1);
 			}
-			code = model.getdb().data(object).insertOnce() != null ? 0 : 99;
+			code = menus.data(object).insertOnce() != null ? 0 : 99;
 		} catch (Exception e) {
 			nlogger.logout(e);
 			code = 99;
@@ -87,7 +89,7 @@ public class Menu {
 	public String UpdateMenu(String id, String mString) {
 		int code = 99;
 		try {
-			code = model.getdb().eq("_id", new ObjectId(id)).data(mString).update() != null ? 0 : 99;
+			code = menus.eq("_id", new ObjectId(id)).data(mString).update() != null ? 0 : 99;
 		} catch (Exception e) {
 			nlogger.logout(e);
 			code = 99;
@@ -111,7 +113,7 @@ public class Menu {
 	public String DeleteMenu(String id) {
 		int code = 99;
 		try {
-			code = model.getdb().eq("_id", new ObjectId(id)).delete() != null ? 0 : 99;
+			code = menus.eq("_id", new ObjectId(id)).delete() != null ? 0 : 99;
 		} catch (Exception e) {
 			nlogger.logout(e);
 			code = 99;
@@ -133,7 +135,7 @@ public class Menu {
 	 *
 	 */
 	public String DeleteBatchMenu(String id) {
-		db db = model.getdb().or();
+		db db = menus.or();
 		int code = 99;
 		try {
 			String[] value = id.split(",");
@@ -161,25 +163,28 @@ public class Menu {
 	 */
 	public String ShowMenu() {
 		JSONArray array = null;
-		if (UserInfo == null) {
-			return resultMessage(3);
-		}
 		try {
 			array = new JSONArray();
-			int rolesign = getRoleSign();
-			if (rolesign == 5) {
-				array = model.getdb().limit(50).select();
-			} else {
 				String prvid = (String) UserInfo.get("ugid");
-				array = model.getdb().eq("state", 0).like("prvid", prvid).select();
-			}
+				array =menus.eq("state", 0).like("prvid", prvid).select();
 		} catch (Exception e) {
 			nlogger.logout(e);
 			array = null;
 		}
 		return resultMessage(array);
 	}
-
+	/**
+	 * 判断当前用户是否为管理员
+	 * 
+	 * @return
+	 */
+	public boolean isAdmin() {
+		int userType = 0;
+		session se = new session();
+		JSONObject userInfo = se.getDatas();
+		userType = (userInfo != null && userInfo.size() != 0) ? Integer.parseInt(userInfo.getString("userType")) : 0;
+		return UserMode.admin == userType;
+	}
 	/**
 	 * 设置菜单状态
 	 * 
@@ -204,7 +209,7 @@ public class Menu {
 		// string = state;
 		// }
 		try {
-			code = model.getdb().eq("_id", new ObjectId(id)).data(state).update() != null ? 0 : 99;
+			code = menus.eq("_id", new ObjectId(id)).data(state).update() != null ? 0 : 99;
 		} catch (Exception e) {
 			nlogger.logout(e);
 			code = 99;
@@ -332,7 +337,7 @@ public class Menu {
 				}
 			}
 			prvid = "{\"prvid\":\"" + prvid + "\"}";
-			code = model.getdb().eq("_id", new ObjectId(mid)).data(prvid).update() != null ? 0 : 99;
+			code = menus.eq("_id", new ObjectId(mid)).data(prvid).update() != null ? 0 : 99;
 		} catch (Exception e) {
 			nlogger.logout(e);
 			code = 99;
@@ -370,7 +375,7 @@ public class Menu {
 				prvid = StringHelper.join(list);
 			}
 			prvid = "{\"prvid\":\"" + prvid + "\"}";
-			code = model.getdb().eq("_id", new ObjectId(mid)).data(prvid).update() != null ? 0 : 99;
+			code = menus.eq("_id", new ObjectId(mid)).data(prvid).update() != null ? 0 : 99;
 		} catch (Exception e) {
 			nlogger.logout(e);
 			code = 99;
@@ -435,7 +440,7 @@ public class Menu {
 	 *
 	 */
 	private JSONObject getPrv(String id) {
-		JSONObject object = model.getdb().eq("_id", new ObjectId(id)).field("prvid").find();
+		JSONObject object = menus.eq("_id", new ObjectId(id)).field("prvid").find();
 		return object != null ? object : null;
 	}
 
@@ -454,52 +459,10 @@ public class Menu {
 	 *
 	 */
 	private JSONObject getMenu(String id, String mid) {
-		JSONObject object = model.getdb().eq("_id", new ObjectId(mid)).like("prvid", id).find();
+		JSONObject object = menus.eq("_id", new ObjectId(mid)).like("prvid", id).find();
 		return object != null ? object : null;
 	}
 
-	/**
-	 * 根据角色plv，获取角色级别
-	 * 
-	 * @project GrapeSuggest
-	 * @package interfaceApplication
-	 * @file Suggest.java
-	 * 
-	 * @return
-	 *
-	 */
-	private int getRoleSign() {
-		int roleSign = 0; // 游客
-		String sid = (String) execRequest.getChannelValue("sid");
-		if (sid != null) {
-			try {
-				privilige privil = new privilige(sid);
-				int roleplv = privil.getRolePV(appsProxy.appidString());
-				if (roleplv >= 1000 && roleplv < 3000) {
-					roleSign = 1; // 普通用户即企业员工
-				}
-				if (roleplv >= 3000 && roleplv < 5000) {
-					roleSign = 2; // 栏目管理员
-				}
-				if (roleplv >= 5000 && roleplv < 8000) {
-					roleSign = 3; // 企业管理员
-				}
-				if (roleplv >= 8000 && roleplv < 10000) {
-					roleSign = 4; // 监督管理员
-				}
-				if (roleplv >= 10000 && roleplv < 12000) {
-					roleSign = 5; // 总管理员
-				}
-				if (roleplv >= 12000) {
-					roleSign = 6; // 总管理员
-				}
-			} catch (Exception e) {
-				nlogger.logout(e);
-				roleSign = 0;
-			}
-		}
-		return roleSign;
-	}
 
 	private HashMap<String, Object> def() {
 		map.put("ownid", appsProxy.appid());

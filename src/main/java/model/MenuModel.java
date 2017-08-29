@@ -11,31 +11,15 @@ import apps.appsProxy;
 import check.formHelper;
 import check.formHelper.formdef;
 import database.db;
-import database.userDBHelper;
+import interfaceModel.GrapeTreeDBModel;
 import json.JSONHelper;
 import nlogger.nlogger;
 import rpc.execRequest;
 
 public class MenuModel {
-	private userDBHelper menus;
-	private formHelper form;
+//	private userDBHelper menus;
 
 
-	public MenuModel() {
-		menus = new userDBHelper("menu", (String) execRequest.getChannelValue("sid"));
-		form = menus.getChecker();
-		form.putRule("name", formdef.notNull);
-		form.putRule("prvid", formdef.notNull);
-	}
-
-	public db getdb() {
-		return menus.bind(String.valueOf(appsProxy.appid()));
-	}
-
-	public JSONObject check(String info, HashMap<String, Object> map) {
-		JSONObject object = AddMap(map, info);
-		return !form.checkRuleEx(object) ? null : object;
-	}
 
 	/**
 	 * 将map添加至JSONObject中

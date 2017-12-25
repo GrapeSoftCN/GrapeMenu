@@ -1,7 +1,6 @@
 package interfaceApplication;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import org.bson.types.ObjectId;
@@ -12,28 +11,29 @@ import JGrapeSystem.jGrapeFW_Message;
 import apps.appsProxy;
 import authority.plvDef.UserMode;
 import database.db;
+import interfaceModel.GrapeDBSpecField;
 import interfaceModel.GrapeTreeDBModel;
 import json.JSONHelper;
-import model.MenuModel;
 import nlogger.nlogger;
-import rpc.execRequest;
 import session.session;
 import string.StringHelper;
-import time.TimeHelper;
 
 public class Menu {
-	private GrapeTreeDBModel menus = new GrapeTreeDBModel();
-	private MenuModel model = new MenuModel();
+	private GrapeTreeDBModel menus;
+	private GrapeDBSpecField gdbField;
 	private session se;
 	private JSONObject _obj;
-	private HashMap<String, Object> map;
 	private JSONObject UserInfo = new JSONObject();
 
 	public Menu() {
-		menus.form("menu").bindApp();
+		menus = new GrapeTreeDBModel();
+		gdbField = new GrapeDBSpecField();
+        gdbField.importDescription(appsProxy.tableConfig("menu"));
+        menus.descriptionModel(gdbField);
+        menus.bindApp();
+		
 		se = new session();
 		_obj = new JSONObject();
-		map = new HashMap<String, Object>();
 		String sid = session.getSID();
 		nlogger.logout(sid);
 		if (sid != null) {
@@ -461,21 +461,6 @@ public class Menu {
 	private JSONObject getMenu(String id, String mid) {
 		JSONObject object = menus.eq("_id", new ObjectId(mid)).like("prvid", id).find();
 		return object != null ? object : null;
-	}
-
-
-	private HashMap<String, Object> def() {
-		map.put("ownid", appsProxy.appid());
-		map.put("prvid", (String) UserInfo.get("ugid"));
-		map.put("parent", "0");
-		map.put("sort", 0);
-		map.put("state", 0);
-		map.put("data", "");
-		map.put("time", String.valueOf(TimeHelper.nowMillis()));
-		// map.put("r", 0);
-		// map.put("d", 0);
-		// map.put("v", 0);
-		return map;
 	}
 
 	@SuppressWarnings("unchecked")

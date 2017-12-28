@@ -1,7 +1,7 @@
 package AppTest;
 
-import httpServer.booter;
-import nlogger.nlogger;
+import common.java.httpServer.booter;
+import common.java.nlogger.nlogger;
 
 public class AppShow {
 	public static void main(String[] args) {
